@@ -51,6 +51,41 @@ body{
     line-height:1.75;
     -webkit-font-smoothing:antialiased;
 }
+.site-particles{
+    position:fixed;
+    inset:0;
+    width:100vw;
+    height:100vh;
+    z-index:0;
+    pointer-events:none;
+}
+#site-particle-field{opacity:.42}
+#site-particle-trail{
+    opacity:.75;
+    mix-blend-mode:multiply;
+}
+[data-theme="dark"] #site-particle-field{opacity:.7}
+[data-theme="dark"] #site-particle-trail{
+    opacity:.86;
+    mix-blend-mode:screen;
+}
+body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+    background:
+        linear-gradient(180deg,color-mix(in srgb,var(--bg) 32%,transparent),transparent 30%,color-mix(in srgb,var(--bg) 48%,transparent)),
+        radial-gradient(circle at 50% 24%,transparent 0 24rem,color-mix(in srgb,var(--bg) 52%,transparent) 46rem);
+}
+nav,
+.progress-bar,
+main,
+footer{
+    position:relative;
+}
+main,footer{z-index:2}
 a{color:inherit}
 button,input,textarea{font:inherit}
 ::selection{background:rgba(216,111,69,.22)}
@@ -598,6 +633,8 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
 </style>
 </head>
 <body>
+<canvas class="site-particles" id="site-particle-field" aria-hidden="true"></canvas>
+<canvas class="site-particles" id="site-particle-trail" aria-hidden="true"></canvas>
 <nav>
     <div class="logo"><span class="logo-dot"></span><span>小宇</span></div>
     <ul class="nav-links" id="navLinks">
@@ -816,6 +853,186 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
 <footer>© 2026 小宇 · 保持好奇，把想法做出来。</footer>
 
 <script>
+/* ========== 全页背景粒子：不改变内容，仅增强氛围 ========== */
+(() => {
+    const field=document.getElementById("site-particle-field");
+    const trailCanvas=document.getElementById("site-particle-trail");
+    if(!field||!trailCanvas) return;
+    const reduce=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const fieldCtx=field.getContext("2d");
+    const trailCtx=trailCanvas.getContext("2d");
+    let bgW=0,bgH=0,bgDpr=1,bgTick=0,bgMode=0,bgParticles=[],bgTrail=[];
+    const bgMouse={x:-9999,y:-9999};
+
+    function bgVar(name){
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function resizeSiteParticles(){
+        bgW=window.innerWidth;
+        bgH=window.innerHeight;
+        bgDpr=Math.min(window.devicePixelRatio||1,1.5);
+        [field,trailCanvas].forEach((canvas)=>{
+            canvas.width=Math.floor(bgW*bgDpr);
+            canvas.height=Math.floor(bgH*bgDpr);
+            canvas.style.width=`${bgW}px`;
+            canvas.style.height=`${bgH}px`;
+        });
+        fieldCtx.setTransform(bgDpr,0,0,bgDpr,0,0);
+        trailCtx.setTransform(bgDpr,0,0,bgDpr,0,0);
+        initSiteParticles();
+    }
+
+    class SiteBgParticle{
+        constructor(){this.reset(true)}
+        reset(randomY=false){
+            this.x=Math.random()*bgW;
+            this.y=randomY?Math.random()*bgH:bgH+Math.random()*80;
+            this.vx=0;
+            this.vy=0;
+            this.life=Math.random()*140;
+            this.size=Math.random()*1.6+.45;
+            this.seed=Math.random()*1000;
+        }
+        update(){
+            this.life+=.35;
+            if(this.life>170){this.reset();return}
+            const t=bgTick*.003;
+            const n=Math.sin(this.x*.0034+t+this.seed)*Math.cos(this.y*.0032+t*.82);
+            const angle=n*Math.PI*2+t*.5;
+            if(bgMode===0){
+                this.vx+=Math.cos(angle)*.105;
+                this.vy+=Math.sin(angle)*.105-.012;
+                this.vx*=.966;
+                this.vy*=.966;
+            }else if(bgMode===1){
+                const cx=bgW*.72,cy=bgH*.35;
+                const dx=this.x-cx,dy=this.y-cy,d=Math.hypot(dx,dy)||1;
+                this.vx+=Math.cos(Math.atan2(dy,dx)+Math.PI/2)*(120/(d+60))*.025-dx*.00032;
+                this.vy+=Math.sin(Math.atan2(dy,dx)+Math.PI/2)*(120/(d+60))*.025-dy*.00032;
+                this.vx*=.972;
+                this.vy*=.972;
+            }else{
+                this.vx+=Math.sin(this.y*.007+t)*.04;
+                this.vy+=Math.cos(this.x*.006+t)*.03-.018;
+                this.vx*=.982;
+                this.vy*=.982;
+            }
+            const mdx=this.x-bgMouse.x,mdy=this.y-bgMouse.y,dist=Math.hypot(mdx,mdy)||1;
+            if(dist<145){
+                const force=(145-dist)/145;
+                this.vx+=mdx/dist*force*.48;
+                this.vy+=mdy/dist*force*.48;
+            }
+            this.x+=this.vx;
+            this.y+=this.vy;
+            if(this.x<-30)this.x=bgW+30;
+            if(this.x>bgW+30)this.x=-30;
+            if(this.y<-30)this.y=bgH+30;
+            if(this.y>bgH+30)this.y=-30;
+        }
+        draw(ctx,accent){
+            const alpha=Math.min(1,this.life/45);
+            ctx.globalAlpha=alpha*.58;
+            ctx.fillStyle=accent;
+            ctx.beginPath();
+            ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    function initSiteParticles(){
+        const count=Math.min(220,Math.max(90,Math.floor((bgW*bgH)/7800)));
+        bgParticles=Array.from({length:count},()=>new SiteBgParticle());
+    }
+
+    function drawSiteConnections(ctx,accent){
+        const step=3;
+        const maxDist=bgMode===2?132:96;
+        ctx.lineWidth=.6;
+        for(let i=0;i<bgParticles.length;i+=step){
+            for(let j=i+step;j<bgParticles.length;j+=step){
+                const a=bgParticles[i],b=bgParticles[j];
+                const d=Math.hypot(a.x-b.x,a.y-b.y);
+                if(d<maxDist){
+                    ctx.globalAlpha=(1-d/maxDist)*.13;
+                    ctx.strokeStyle=accent;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x,a.y);
+                    ctx.lineTo(b.x,b.y);
+                    ctx.stroke();
+                }
+            }
+        }
+        ctx.globalAlpha=1;
+    }
+
+    function drawSiteTrail(ctx,accent){
+        ctx.clearRect(0,0,bgW,bgH);
+        if(bgTrail.length<2) return;
+        ctx.lineWidth=1.3;
+        ctx.strokeStyle=accent;
+        ctx.globalAlpha=.2;
+        ctx.beginPath();
+        ctx.moveTo(bgTrail[0].x,bgTrail[0].y);
+        for(let i=1;i<bgTrail.length;i++) ctx.lineTo(bgTrail[i].x,bgTrail[i].y);
+        ctx.stroke();
+        const p=bgTrail[bgTrail.length-1];
+        const grad=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,120);
+        grad.addColorStop(0,"rgba(38,95,104,.10)");
+        grad.addColorStop(1,"rgba(38,95,104,0)");
+        ctx.globalAlpha=1;
+        ctx.fillStyle=grad;
+        ctx.fillRect(p.x-120,p.y-120,240,240);
+    }
+
+    function animateSiteParticles(){
+        bgTick++;
+        const bg=bgVar("--bg")||"#f7f8f5";
+        const accent=bgVar("--accent")||"#265f68";
+        const accent2=bgVar("--accent-2")||"#d86f45";
+        fieldCtx.clearRect(0,0,bgW,bgH);
+        fieldCtx.fillStyle="transparent";
+        fieldCtx.fillRect(0,0,bgW,bgH);
+        fieldCtx.globalAlpha=.24;
+        fieldCtx.strokeStyle=accent;
+        fieldCtx.lineWidth=.45;
+        const grid=48;
+        for(let x=0;x<bgW;x+=grid){fieldCtx.beginPath();fieldCtx.moveTo(x,0);fieldCtx.lineTo(x,bgH);fieldCtx.stroke()}
+        for(let y=0;y<bgH;y+=grid){fieldCtx.beginPath();fieldCtx.moveTo(0,y);fieldCtx.lineTo(bgW,y);fieldCtx.stroke()}
+        fieldCtx.globalAlpha=1;
+        bgParticles.forEach((p)=>{p.update();p.draw(fieldCtx,bgMode===2?accent2:accent)});
+        drawSiteConnections(fieldCtx,bgMode===1?accent2:accent);
+        if(bgMouse.x>0){
+            bgTrail.push({x:bgMouse.x,y:bgMouse.y});
+            if(bgTrail.length>26) bgTrail.shift();
+        }else{
+            bgTrail.shift();
+        }
+        drawSiteTrail(trailCtx,accent);
+        requestAnimationFrame(animateSiteParticles);
+    }
+
+    if(reduce){
+        field.style.display="none";
+        trailCanvas.style.display="none";
+        return;
+    }
+    resizeSiteParticles();
+    window.addEventListener("resize",resizeSiteParticles,{passive:true});
+    window.addEventListener("mousemove",(event)=>{
+        bgMouse.x=event.clientX;
+        bgMouse.y=event.clientY;
+    },{passive:true});
+    window.addEventListener("mouseleave",()=>{
+        bgMouse.x=-9999;
+        bgMouse.y=-9999;
+        bgTrail=[];
+    });
+    window.setInterval(()=>{bgMode=(bgMode+1)%3},9000);
+    requestAnimationFrame(animateSiteParticles);
+})();
+
 const root=document.documentElement;
 const darkToggle=document.getElementById("darkToggle");
 const navLinks=document.getElementById("navLinks");
