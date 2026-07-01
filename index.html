@@ -59,12 +59,12 @@ body{
     z-index:0;
     pointer-events:none;
 }
-#site-particle-field{opacity:.42}
+#site-particle-field{opacity:.68}
 #site-particle-trail{
     opacity:.75;
     mix-blend-mode:multiply;
 }
-[data-theme="dark"] #site-particle-field{opacity:.7}
+[data-theme="dark"] #site-particle-field{opacity:.82}
 [data-theme="dark"] #site-particle-trail{
     opacity:.86;
     mix-blend-mode:screen;
@@ -76,8 +76,8 @@ body::after{
     z-index:1;
     pointer-events:none;
     background:
-        linear-gradient(180deg,color-mix(in srgb,var(--bg) 32%,transparent),transparent 30%,color-mix(in srgb,var(--bg) 48%,transparent)),
-        radial-gradient(circle at 50% 24%,transparent 0 24rem,color-mix(in srgb,var(--bg) 52%,transparent) 46rem);
+        linear-gradient(180deg,color-mix(in srgb,var(--bg) 18%,transparent),transparent 34%,color-mix(in srgb,var(--bg) 26%,transparent)),
+        radial-gradient(circle at 50% 24%,transparent 0 26rem,color-mix(in srgb,var(--bg) 28%,transparent) 50rem);
 }
 nav,
 .progress-bar,
@@ -897,8 +897,8 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
         ghostCtx.textAlign="center";
         ghostCtx.textBaseline="middle";
         const hasCn=/[\u4e00-\u9fff]/.test(word);
-        let fontSize=Math.floor(Math.min(bgH*(hasCn?.24:.27),bgW*(hasCn?.78:.9)/Math.max(word.length*.52,2.4)));
-        fontSize=Math.max(42,Math.min(fontSize,170));
+        let fontSize=Math.floor(Math.min(bgH*(hasCn?.28:.31),bgW*(hasCn?.86:.96)/Math.max(word.length*.5,2.2)));
+        fontSize=Math.max(52,Math.min(fontSize,205));
         ghostCtx.font=`800 ${fontSize}px "Inter","Noto Sans SC",sans-serif`;
         while(ghostCtx.measureText(word).width>bgW*.86&&fontSize>34){
             fontSize-=6;
@@ -908,7 +908,7 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
         ghostCtx.fillText(word,bgW/2,centerY);
         const data=ghostCtx.getImageData(0,0,bgW,bgH).data;
         const points=[];
-        const gap=Math.max(5,Math.round(bgW/150));
+        const gap=Math.max(4,Math.round(bgW/190));
         for(let y=0;y<bgH;y+=gap){
             for(let x=0;x<bgW;x+=gap){
                 if(data[(y*bgW+x)*4+3]>120) points.push([x,y]);
@@ -982,7 +982,7 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
         const damping=bgSwitching&&age<scatterMs?.9:.815;
         const breathe=.78+Math.sin(now*.0019)*.08;
         fieldCtx.clearRect(0,0,bgW,bgH);
-        fieldCtx.globalAlpha=.12;
+        fieldCtx.globalAlpha=.08;
         fieldCtx.strokeStyle=accent;
         fieldCtx.lineWidth=.45;
         const grid=56;
@@ -1004,15 +1004,15 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
             p.y+=p.vy;
             p.alpha+=((p.on?1:0)-p.alpha)*.075;
             const speed=Math.min(1,(Math.abs(p.vx)+Math.abs(p.vy))/10);
-            fieldCtx.globalAlpha=Math.min(.58,p.alpha*breathe);
+            fieldCtx.globalAlpha=Math.min(.82,p.alpha*breathe);
             fieldCtx.fillStyle=speed>.36?accent2:accent;
-            fieldCtx.fillRect(p.x,p.y,2.1,2.1);
+            fieldCtx.fillRect(p.x,p.y,2.7,2.7);
             if(speed>.08){
-                fieldCtx.globalAlpha=p.alpha*.1;
+                fieldCtx.globalAlpha=p.alpha*.16;
                 fieldCtx.strokeStyle=accent2;
                 fieldCtx.beginPath();
                 fieldCtx.moveTo(p.x,p.y);
-                fieldCtx.lineTo(p.x-p.vx*2.6,p.y-p.vy*2.6);
+                fieldCtx.lineTo(p.x-p.vx*2.4,p.y-p.vy*2.4);
                 fieldCtx.stroke();
             }
         }
