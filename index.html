@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
@@ -853,7 +853,7 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
 <footer>© 2026 小宇 · 保持好奇，把想法做出来。</footer>
 
 <script>
-/* ========== 全页背景粒子：不改变内容，仅增强氛围 ========== */
+/* ========== 全页背景粒子字：不改变内容，仅增强氛围 ========== */
 (() => {
     const field=document.getElementById("site-particle-field");
     const trailCanvas=document.getElementById("site-particle-trail");
@@ -861,8 +861,14 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
     const reduce=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const fieldCtx=field.getContext("2d");
     const trailCtx=trailCanvas.getContext("2d");
-    let bgW=0,bgH=0,bgDpr=1,bgTick=0,bgMode=0,bgParticles=[],bgTrail=[];
+    const ghost=document.createElement("canvas");
+    const ghostCtx=ghost.getContext("2d",{willReadFrequently:true});
+    const bgWords=["VIBE CODING","AI 编程","知识管理","工作流","把想法做出来"];
+    let bgW=0,bgH=0,bgDpr=1,bgIndex=0,bgParticles=[],bgSwitching=false,bgLastSwitch=performance.now();
     const bgMouse={x:-9999,y:-9999};
+    const stayMs=3400;
+    const scatterMs=300;
+    const gatherMs=1050;
 
     function bgVar(name){
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -880,136 +886,138 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
         });
         fieldCtx.setTransform(bgDpr,0,0,bgDpr,0,0);
         trailCtx.setTransform(bgDpr,0,0,bgDpr,0,0);
-        initSiteParticles();
+        ghost.width=bgW;
+        ghost.height=bgH;
+        retargetSiteType(bgIndex,false);
     }
 
-    class SiteBgParticle{
-        constructor(){this.reset(true)}
-        reset(randomY=false){
-            this.x=Math.random()*bgW;
-            this.y=randomY?Math.random()*bgH:bgH+Math.random()*80;
-            this.vx=0;
-            this.vy=0;
-            this.life=Math.random()*140;
-            this.size=Math.random()*1.6+.45;
-            this.seed=Math.random()*1000;
+    function sampleSiteWord(word){
+        ghostCtx.clearRect(0,0,bgW,bgH);
+        ghostCtx.fillStyle="#fff";
+        ghostCtx.textAlign="center";
+        ghostCtx.textBaseline="middle";
+        const hasCn=/[\u4e00-\u9fff]/.test(word);
+        let fontSize=Math.floor(Math.min(bgH*(hasCn?.24:.27),bgW*(hasCn?.78:.9)/Math.max(word.length*.52,2.4)));
+        fontSize=Math.max(42,Math.min(fontSize,170));
+        ghostCtx.font=`800 ${fontSize}px "Inter","Noto Sans SC",sans-serif`;
+        while(ghostCtx.measureText(word).width>bgW*.86&&fontSize>34){
+            fontSize-=6;
+            ghostCtx.font=`800 ${fontSize}px "Inter","Noto Sans SC",sans-serif`;
         }
-        update(){
-            this.life+=.35;
-            if(this.life>170){this.reset();return}
-            const t=bgTick*.003;
-            const n=Math.sin(this.x*.0034+t+this.seed)*Math.cos(this.y*.0032+t*.82);
-            const angle=n*Math.PI*2+t*.5;
-            if(bgMode===0){
-                this.vx+=Math.cos(angle)*.105;
-                this.vy+=Math.sin(angle)*.105-.012;
-                this.vx*=.966;
-                this.vy*=.966;
-            }else if(bgMode===1){
-                const cx=bgW*.72,cy=bgH*.35;
-                const dx=this.x-cx,dy=this.y-cy,d=Math.hypot(dx,dy)||1;
-                this.vx+=Math.cos(Math.atan2(dy,dx)+Math.PI/2)*(120/(d+60))*.025-dx*.00032;
-                this.vy+=Math.sin(Math.atan2(dy,dx)+Math.PI/2)*(120/(d+60))*.025-dy*.00032;
-                this.vx*=.972;
-                this.vy*=.972;
-            }else{
-                this.vx+=Math.sin(this.y*.007+t)*.04;
-                this.vy+=Math.cos(this.x*.006+t)*.03-.018;
-                this.vx*=.982;
-                this.vy*=.982;
-            }
-            const mdx=this.x-bgMouse.x,mdy=this.y-bgMouse.y,dist=Math.hypot(mdx,mdy)||1;
-            if(dist<145){
-                const force=(145-dist)/145;
-                this.vx+=mdx/dist*force*.48;
-                this.vy+=mdy/dist*force*.48;
-            }
-            this.x+=this.vx;
-            this.y+=this.vy;
-            if(this.x<-30)this.x=bgW+30;
-            if(this.x>bgW+30)this.x=-30;
-            if(this.y<-30)this.y=bgH+30;
-            if(this.y>bgH+30)this.y=-30;
-        }
-        draw(ctx,accent){
-            const alpha=Math.min(1,this.life/45);
-            ctx.globalAlpha=alpha*.58;
-            ctx.fillStyle=accent;
-            ctx.beginPath();
-            ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-            ctx.fill();
-        }
-    }
-
-    function initSiteParticles(){
-        const count=Math.min(220,Math.max(90,Math.floor((bgW*bgH)/7800)));
-        bgParticles=Array.from({length:count},()=>new SiteBgParticle());
-    }
-
-    function drawSiteConnections(ctx,accent){
-        const step=3;
-        const maxDist=bgMode===2?132:96;
-        ctx.lineWidth=.6;
-        for(let i=0;i<bgParticles.length;i+=step){
-            for(let j=i+step;j<bgParticles.length;j+=step){
-                const a=bgParticles[i],b=bgParticles[j];
-                const d=Math.hypot(a.x-b.x,a.y-b.y);
-                if(d<maxDist){
-                    ctx.globalAlpha=(1-d/maxDist)*.13;
-                    ctx.strokeStyle=accent;
-                    ctx.beginPath();
-                    ctx.moveTo(a.x,a.y);
-                    ctx.lineTo(b.x,b.y);
-                    ctx.stroke();
-                }
+        const centerY=bgW<640?bgH*.66:bgH*.48;
+        ghostCtx.fillText(word,bgW/2,centerY);
+        const data=ghostCtx.getImageData(0,0,bgW,bgH).data;
+        const points=[];
+        const gap=Math.max(5,Math.round(bgW/150));
+        for(let y=0;y<bgH;y+=gap){
+            for(let x=0;x<bgW;x+=gap){
+                if(data[(y*bgW+x)*4+3]>120) points.push([x,y]);
             }
         }
-        ctx.globalAlpha=1;
+        return points;
     }
 
-    function drawSiteTrail(ctx,accent){
-        ctx.clearRect(0,0,bgW,bgH);
-        if(bgTrail.length<2) return;
-        ctx.lineWidth=1.3;
-        ctx.strokeStyle=accent;
-        ctx.globalAlpha=.2;
-        ctx.beginPath();
-        ctx.moveTo(bgTrail[0].x,bgTrail[0].y);
-        for(let i=1;i<bgTrail.length;i++) ctx.lineTo(bgTrail[i].x,bgTrail[i].y);
-        ctx.stroke();
-        const p=bgTrail[bgTrail.length-1];
-        const grad=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,120);
+    function retargetSiteType(index,scatter=true){
+        bgIndex=(index+bgWords.length)%bgWords.length;
+        const points=sampleSiteWord(bgWords[bgIndex]);
+        const centerY=bgW<640?bgH*.66:bgH*.48;
+        points.forEach(([gx,gy],i)=>{
+            if(!bgParticles[i]){
+                bgParticles[i]={x:Math.random()*bgW,y:Math.random()*bgH,vx:0,vy:0,tx:gx,ty:gy,gx,gy,alpha:0,on:true};
+            }
+            const p=bgParticles[i];
+            const angle=Math.random()*Math.PI*2;
+            const radius=scatter?Math.max(bgW,bgH)*(.12+Math.random()*.28):0;
+            p.gx=gx;
+            p.gy=gy;
+            p.tx=scatter?bgW/2+Math.cos(angle)*radius:gx;
+            p.ty=scatter?centerY+Math.sin(angle)*radius:gy;
+            p.on=true;
+            p.alpha=Math.min(1,p.alpha+.22);
+            p.vx+=(Math.random()-.5)*(scatter?5.8:2);
+            p.vy+=(Math.random()-.5)*(scatter?5.8:2);
+        });
+        for(let i=points.length;i<bgParticles.length;i++){
+            const p=bgParticles[i];
+            p.on=false;
+            p.tx=bgW/2+(Math.random()-.5)*bgW*.9;
+            p.ty=centerY+(Math.random()-.5)*bgH*.55;
+        }
+    }
+
+    function switchSiteType(){
+        if(bgSwitching) return;
+        bgSwitching=true;
+        bgLastSwitch=performance.now();
+        retargetSiteType(bgIndex+1,true);
+        window.setTimeout(()=>{
+            bgParticles.forEach((p)=>{
+                if(!p.on) return;
+                p.tx=p.gx;
+                p.ty=p.gy;
+            });
+        },scatterMs);
+        window.setTimeout(()=>{
+            bgSwitching=false;
+            bgLastSwitch=performance.now();
+        },scatterMs+gatherMs);
+    }
+
+    function drawSiteGlow(){
+        trailCtx.clearRect(0,0,bgW,bgH);
+        if(bgMouse.x<0) return;
+        const grad=trailCtx.createRadialGradient(bgMouse.x,bgMouse.y,0,bgMouse.x,bgMouse.y,120);
         grad.addColorStop(0,"rgba(38,95,104,.10)");
         grad.addColorStop(1,"rgba(38,95,104,0)");
-        ctx.globalAlpha=1;
-        ctx.fillStyle=grad;
-        ctx.fillRect(p.x-120,p.y-120,240,240);
+        trailCtx.fillStyle=grad;
+        trailCtx.fillRect(bgMouse.x-120,bgMouse.y-120,240,240);
     }
 
     function animateSiteParticles(){
-        bgTick++;
-        const bg=bgVar("--bg")||"#f7f8f5";
         const accent=bgVar("--accent")||"#265f68";
         const accent2=bgVar("--accent-2")||"#d86f45";
+        const now=performance.now();
+        const age=now-bgLastSwitch;
+        const stiffness=bgSwitching&&age<scatterMs?.008:.032;
+        const damping=bgSwitching&&age<scatterMs?.9:.815;
+        const breathe=.78+Math.sin(now*.0019)*.08;
         fieldCtx.clearRect(0,0,bgW,bgH);
-        fieldCtx.fillStyle="transparent";
-        fieldCtx.fillRect(0,0,bgW,bgH);
-        fieldCtx.globalAlpha=.24;
+        fieldCtx.globalAlpha=.12;
         fieldCtx.strokeStyle=accent;
         fieldCtx.lineWidth=.45;
-        const grid=48;
+        const grid=56;
         for(let x=0;x<bgW;x+=grid){fieldCtx.beginPath();fieldCtx.moveTo(x,0);fieldCtx.lineTo(x,bgH);fieldCtx.stroke()}
         for(let y=0;y<bgH;y+=grid){fieldCtx.beginPath();fieldCtx.moveTo(0,y);fieldCtx.lineTo(bgW,y);fieldCtx.stroke()}
-        fieldCtx.globalAlpha=1;
-        bgParticles.forEach((p)=>{p.update();p.draw(fieldCtx,bgMode===2?accent2:accent)});
-        drawSiteConnections(fieldCtx,bgMode===1?accent2:accent);
-        if(bgMouse.x>0){
-            bgTrail.push({x:bgMouse.x,y:bgMouse.y});
-            if(bgTrail.length>26) bgTrail.shift();
-        }else{
-            bgTrail.shift();
+        for(const p of bgParticles){
+            if(!p.on&&p.alpha<.02) continue;
+            const dx=p.tx-p.x;
+            const dy=p.ty-p.y;
+            p.vx=(p.vx+dx*stiffness)*damping;
+            p.vy=(p.vy+dy*stiffness)*damping;
+            const mdx=p.x-bgMouse.x,mdy=p.y-bgMouse.y,dist=Math.hypot(mdx,mdy)||1;
+            if(dist<118){
+                const force=(118-dist)/118;
+                p.vx+=mdx/dist*force*.8;
+                p.vy+=mdy/dist*force*.8;
+            }
+            p.x+=p.vx;
+            p.y+=p.vy;
+            p.alpha+=((p.on?1:0)-p.alpha)*.075;
+            const speed=Math.min(1,(Math.abs(p.vx)+Math.abs(p.vy))/10);
+            fieldCtx.globalAlpha=Math.min(.58,p.alpha*breathe);
+            fieldCtx.fillStyle=speed>.36?accent2:accent;
+            fieldCtx.fillRect(p.x,p.y,2.1,2.1);
+            if(speed>.08){
+                fieldCtx.globalAlpha=p.alpha*.1;
+                fieldCtx.strokeStyle=accent2;
+                fieldCtx.beginPath();
+                fieldCtx.moveTo(p.x,p.y);
+                fieldCtx.lineTo(p.x-p.vx*2.6,p.y-p.vy*2.6);
+                fieldCtx.stroke();
+            }
         }
-        drawSiteTrail(trailCtx,accent);
+        fieldCtx.globalAlpha=1;
+        drawSiteGlow();
         requestAnimationFrame(animateSiteParticles);
     }
 
@@ -1027,13 +1035,12 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
     window.addEventListener("mouseleave",()=>{
         bgMouse.x=-9999;
         bgMouse.y=-9999;
-        bgTrail=[];
     });
-    window.setInterval(()=>{bgMode=(bgMode+1)%3},9000);
+    window.setInterval(switchSiteType,stayMs+scatterMs+gatherMs);
     requestAnimationFrame(animateSiteParticles);
 })();
 
-const root=document.documentElement;
+const root=document.documentElement; 
 const darkToggle=document.getElementById("darkToggle");
 const navLinks=document.getElementById("navLinks");
 const menuToggle=document.getElementById("menuToggle");
@@ -1496,3 +1503,4 @@ document.querySelectorAll(".demo-btns button").forEach(btn=>{
 </script>
 </body>
 </html>
+
