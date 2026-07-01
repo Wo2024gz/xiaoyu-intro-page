@@ -897,18 +897,18 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
         ghostCtx.textAlign="center";
         ghostCtx.textBaseline="middle";
         const hasCn=/[\u4e00-\u9fff]/.test(word);
-        let fontSize=Math.floor(Math.min(bgH*(hasCn?.28:.31),bgW*(hasCn?.86:.96)/Math.max(word.length*.5,2.2)));
-        fontSize=Math.max(52,Math.min(fontSize,205));
+        let fontSize=Math.floor(Math.min(bgH*(hasCn?.34:.38),bgW*(hasCn?.98:1.12)/Math.max(word.length*.46,2)));
+        fontSize=Math.max(64,Math.min(fontSize,270));
         ghostCtx.font=`800 ${fontSize}px "Inter","Noto Sans SC",sans-serif`;
-        while(ghostCtx.measureText(word).width>bgW*.86&&fontSize>34){
+        while(ghostCtx.measureText(word).width>bgW*.98&&fontSize>40){
             fontSize-=6;
             ghostCtx.font=`800 ${fontSize}px "Inter","Noto Sans SC",sans-serif`;
         }
-        const centerY=bgW<640?bgH*.66:bgH*.48;
+        const centerY=bgW<640?bgH*.72:bgH*.5;
         ghostCtx.fillText(word,bgW/2,centerY);
         const data=ghostCtx.getImageData(0,0,bgW,bgH).data;
         const points=[];
-        const gap=Math.max(4,Math.round(bgW/190));
+        const gap=Math.max(4,Math.round(bgW/210));
         for(let y=0;y<bgH;y+=gap){
             for(let x=0;x<bgW;x+=gap){
                 if(data[(y*bgW+x)*4+3]>120) points.push([x,y]);
@@ -920,7 +920,7 @@ footer{padding:34px 20px 44px;text-align:center;color:var(--soft);font-size:.84r
     function retargetSiteType(index,scatter=true){
         bgIndex=(index+bgWords.length)%bgWords.length;
         const points=sampleSiteWord(bgWords[bgIndex]);
-        const centerY=bgW<640?bgH*.66:bgH*.48;
+        const centerY=bgW<640?bgH*.72:bgH*.5;
         points.forEach(([gx,gy],i)=>{
             if(!bgParticles[i]){
                 bgParticles[i]={x:Math.random()*bgW,y:Math.random()*bgH,vx:0,vy:0,tx:gx,ty:gy,gx,gy,alpha:0,on:true};
